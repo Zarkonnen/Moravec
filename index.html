@@ -55,6 +55,23 @@ var entityTypes = {
     }
 };
 
+var clusters = [
+    {
+        weight: 100,
+        minN: 1,
+        maxN: 12,
+        t: entityTypes.tree,
+        radius: 100
+    },
+    {
+        weight: 500,
+        minN: 5,
+        maxN: 20,
+        t: entityTypes.flower,
+        radius: 80
+    }
+];
+
 var player = {
     x: MAP_SIZE * TILE_W / 2,
     y: MAP_SIZE * TILE_H / 2,
@@ -78,22 +95,43 @@ function createMap() {
         }
         tiles.push(row);
     }
-    for (var i = 0; i < 5000; i++) {
-        var type = Math.random() < 0.2 ? entityTypes.tree : entityTypes.flower;
-        var x = Math.random() * MAP_SIZE * TILE_W;
-        var y = Math.random() * MAP_SIZE * TILE_H;
-        if (entities.some(function(e) { return (e.x - x) * (e.x - x) + (e.y - y) * (e.y - y) < (e.t.radius + type.radius) * (e.t.radius + type.radius); })) {
-            continue;
+    var totalWeight = 0;
+    clusters.forEach(function(c) { totalWeight += c.weight; });
+    for (var i = 0; i < 1000; i++) {
+        var roll = Math.random() * totalWeight;
+        var cluster = null;
+        for (var j = 0; j < clusters.length; j++) {
+            if (roll < clusters[j].weight) {
+                cluster = clusters[j];
+                break;
+            } else {
+                roll -= clusters[j].weight;
+            }
         }
-        entities.push({
-            x: x,
-            y: y,
-            dx: 0,
-            dy: 0,
-            t: type,
-            ticked: false,
-            variation: Math.floor(Math.random() * type.imgs.length)
-        });
+        var cx = Math.random() * (MAP_SIZE * TILE_W - cluster.radius * 2) + cluster.radius;
+        var cy = Math.random() * (MAP_SIZE * TILE_W - cluster.radius * 2) + cluster.radius;
+        var n = cluster.minN + Math.floor(Math.random() * (cluster.maxN - cluster.minN));
+        var placed = 0;
+        var type = cluster.t;
+        while (placed < n) {
+            var a = Math.random() * Math.PI * 2;
+            var d = Math.random() * cluster.radius;
+            var x = cx + Math.cos(a) * d;
+            var y = cy + Math.sin(a) * d;
+            if (entities.some(function(e) { return (e.x - x) * (e.x - x) + (e.y - y) * (e.y - y) < (e.t.radius + type.radius) * (e.t.radius + type.radius); })) {
+                continue;
+            }
+            entities.push({
+                x: x,
+                y: y,
+                dx: 0,
+                dy: 0,
+                t: type,
+                ticked: false,
+                variation: Math.floor(Math.random() * type.imgs.length)
+            });
+            placed++;
+        }
     }
     entities.sort(function (a, b) { return a.y - b.y; });
 }
