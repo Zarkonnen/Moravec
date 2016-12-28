@@ -117,7 +117,7 @@ function createMap() {
             var a = Math.random() * Math.PI * 2;
             var d = Math.random() * cluster.radius;
             var x = cx + Math.cos(a) * d;
-            var y = cy + Math.sin(a) * d;
+            var y = cy + Math.sin(a) * d * TILE_H / TILE_W;
             if (entities.some(function(e) { return (e.x - x) * (e.x - x) + (e.y - y) * (e.y - y) < (e.t.radius + type.radius) * (e.t.radius + type.radius); })) {
                 continue;
             }
@@ -138,6 +138,7 @@ function createMap() {
 
 var shiftX = 0;
 var shiftY = 0;
+var moveTo = null;
 
 function shift(dx, dy) {
     shiftX += dx;
@@ -152,15 +153,32 @@ function tick(ms) {
     player.dy = 0;
     if (down("W")) {
         player.dy = -0.002 * TILE_H;
+        moveTo = null;
     }
     if (down("S")) {
         player.dy = 0.002 * TILE_H;
+        moveTo = null;
     }
     if (down("A")) {
         player.dx = -0.002 * TILE_W;
+        moveTo = null;
     }
     if (down("D")) {
         player.dx = 0.002 * TILE_W;
+        moveTo = null;
+    }
+    if (click) {
+        moveTo = { x: click.x - shiftX, y: click.y - shiftY };
+    }
+    
+    if (moveTo) {
+        if ((player.x - moveTo.x) * (player.x - moveTo.x) + (player.y - moveTo.y) * (player.y - moveTo.y) < 5) {
+            moveTo = null;
+        } else {
+            var a = Math.atan2(moveTo.y - player.y, moveTo.x - player.x);
+            player.dx = Math.cos(a) * 0.003 * TILE_W;
+            player.dy = Math.sin(a) * 0.003 * TILE_H;
+        }
     }
     
     var i = 0;
