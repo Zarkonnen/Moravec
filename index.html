@@ -27,6 +27,12 @@ var tileTypes = {
 };
 
 var entityTypes = {
+    player: {
+        imgs: [
+            {x: 1, y: 71, w: 12, h: 22, dx: -6, dy: -18}
+        ],
+        radius: 6
+    },
     flower: {
         imgs: [
             {x: 6, y: 105, w: 5, h: 9, dx: 0, dy: -9},
@@ -35,23 +41,28 @@ var entityTypes = {
             {x: 8, y: 129, w: 2, h: 11, dx: -1, dy: -11},
             {x: 38, y: 127, w: 4, h: 10, dx: 0, dy: -9},
             {x: 52, y: 130, w: 3, h: 9, dx: -2, dy: -9}
-        ]
+        ],
+        radius: 2
     },
     tree: {
         imgs: [
             {x: 59, y: 81, w: 64, h: 53, dx: -30, dy: -50}
-        ]
+        ],
+        radius: 12
     }
 };
 
 var player = {
     x: MAP_SIZE * TILE_W / 2,
     y: MAP_SIZE * TILE_H / 2,
-    img: {x: 1, y: 71, w: 12, h: 22, dx: -6, dy: -18}
+    t: entityTypes.player,
+    variation: 0
 };
 
 var tiles = [];
 var entities = [];
+
+entities.push(player);
 
 function createMap() {
     for (var y = 0; y < MAP_SIZE; y++) {
@@ -63,13 +74,26 @@ function createMap() {
     }
     for (var i = 0; i < 5000; i++) {
         var type = Math.random() < 0.2 ? entityTypes.tree : entityTypes.flower;
+        var x = Math.random() * MAP_SIZE * TILE_W;
+        var y = Math.random() * MAP_SIZE * TILE_H;
+        if (entities.some(function(e) { return (e.x - x) * (e.x - x) + (e.y - y) * (e.y - y) < (e.t.radius + type.radius) * (e.t.radius + type.radius); })) {
+            continue;
+        }
         entities.push({
-            x: Math.random() * MAP_SIZE * TILE_W,
-            y: Math.random() * MAP_SIZE * TILE_H,
+            x: x,
+            y: y,
             t: type,
             variation: Math.floor(Math.random() * type.imgs.length)
         });
     }
+}
+
+var shiftX = 0;
+var shiftY = 0;
+
+function shift(dx, dy) {
+    shiftX += dx;
+    shiftY += dy;
 }
 
 createMap();
@@ -89,17 +113,18 @@ function tick(ms) {
         player.x += ms * 0.001 * TILE_W;
     }
 
-    c.resetTransform();
+    shiftX = 0;
+    shiftY = 0;
     c.fillStyle = "black";
     c.fillRect(0, 0, canvas.width, canvas.height);
-    c.translate(-player.x + canvas.width / 2, -player.y + canvas.height / 2);
+    shift(-player.x + canvas.width / 2, -player.y + canvas.height / 2);
     for (var y = 0; y < MAP_SIZE; y++) { for (var x = 0; x < MAP_SIZE; x++) {
         img(tiles[y][x].t.img, x * TILE_W, y * TILE_H, TILE_W, TILE_H);
     }}
+    entities.sort(function (a, b) { return a.y - b.y; });
     entities.forEach(function(e) {
         img(e.t.imgs[e.variation], e.x, e.y);
     });
-    img(player.img, player.x, player.y);
     
     /*
     c.resetTransform();
@@ -119,7 +144,11 @@ spritesheet.src = "graphics/spritesheet.png";
 
 function img(img, x, y) {
     if (img == null) { return; }
-    c.drawImage(spritesheet, img.x, img.y, img.w, img.h, x + (img.dx || 0), y + (img.dy || 0), img.w, img.h);
+    if (x + (img.dx || 0) + shiftX + img.w < 0) { return; }
+    if (y + (img.dy || 0) + shiftY + img.h < 0) { return; }
+    if (x + (img.dx || 0) + shiftX > canvas.width) { return; }
+    if (y + (img.dy || 0) + shiftY > canvas.height) { return; }
+    c.drawImage(spritesheet, img.x, img.y, img.w, img.h, x + (img.dx || 0) + shiftX, y + (img.dy || 0) + shiftY, img.w, img.h);
 }
 
 var canvas = document.getElementById("gameCanvas");

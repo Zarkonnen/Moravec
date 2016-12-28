@@ -1,5 +1,6 @@
-- make player an entity
++ make player an entity
 - entity radii
+- entity collision
 - entity clusters
 - player movement by clicking
 
