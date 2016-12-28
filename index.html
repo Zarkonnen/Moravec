@@ -129,8 +129,17 @@ function tick(ms) {
     while (i < entities.length) {
         var e = entities[i];
         if (e.ticked) { i++; continue; }
-        e.x += e.dx * ms;
-        e.y += e.dy * ms;
+        if (e.dx != 0 || e.dy != 0) {
+            var ex2 = e.x + e.dx * ms;
+            var ey2 = e.y + e.dy * ms;
+            if (!e.t.solid || !entities.some(function(e2) {
+                return e2.t.solid && e != e2 && (e2.x - ex2) * (e2.x - ex2) + (e2.y - ey2) * (e2.y - ey2) < (e2.t.radius + e.t.radius) * (e2.t.radius + e.t.radius);
+            }))
+            {
+                e.x = ex2;
+                e.y = ey2;
+            }
+        }
         e.ticked = true;
         if (e.dy != 0) {
             var j = i;
