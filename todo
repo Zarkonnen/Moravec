@@ -1,0 +1,12 @@
+- make player an entity
+- entity radii
+- entity clusters
+- player movement by clicking
+
+- hunger meter
+- thirst meter
+- player-entity interactions: click on a flower to pick it
+- inventory
+- crafting
+- tool-based player-entity interactions: click on a tree to fell it
+- consuming

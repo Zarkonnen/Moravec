@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html style="margin: 0; padding: 0;">
+    <head>
+        <title>Moravec</title>
+        <script src="jquery-3.1.1.min.js"></script>
+        <script src="howler.min.js"></script>
+    </head>
+    <body style="margin: 0; padding: 0; background: black;">
+        <canvas width="800" height="600" allowfullscreen="true" id="gameCanvas" style="margin-left: 10px; margin-top: 10px;"></canvas>
+        <script>
+
+function hwl(name, volume) {
+    return new Howl({src: ["sounds/" + name + ".ogg", "sounds/" + name + ".mp3", "sounds/" + name + ".wav"], volume: volume || 1});
+}
+
+var MAP_SIZE = 100;
+var TILE_W = 100;
+var TILE_H = 70;
+
+var tileTypes = {
+    grass: {
+        img: {x: 0, y: 0, w: 100, h: 70}
+    },
+    rock: {
+        img: {x: 100, y: 0, w: 100, h: 70}
+    }
+};
+
+var entityTypes = {
+    flower: {
+        imgs: [
+            {x: 6, y: 105, w: 5, h: 9, dx: 0, dy: -9},
+            {x: 35, y: 109, w: 3, h: 9, dx: 0, dy: -9},
+            {x: 18, y: 118, w: 4, h: 9, dx: -1, dy: -9},
+            {x: 8, y: 129, w: 2, h: 11, dx: -1, dy: -11},
+            {x: 38, y: 127, w: 4, h: 10, dx: 0, dy: -9},
+            {x: 52, y: 130, w: 3, h: 9, dx: -2, dy: -9}
+        ]
+    },
+    tree: {
+        imgs: [
+            {x: 59, y: 81, w: 64, h: 53, dx: -30, dy: -50}
+        ]
+    }
+};
+
+var player = {
+    x: MAP_SIZE * TILE_W / 2,
+    y: MAP_SIZE * TILE_H / 2,
+    img: {x: 1, y: 71, w: 12, h: 22, dx: -6, dy: -18}
+};
+
+var tiles = [];
+var entities = [];
+
+function createMap() {
+    for (var y = 0; y < MAP_SIZE; y++) {
+        var row = [];
+        for (var x = 0; x < MAP_SIZE; x++) {
+            row.push({t: tileTypes.grass});
+        }
+        tiles.push(row);
+    }
+    for (var i = 0; i < 5000; i++) {
+        var type = Math.random() < 0.2 ? entityTypes.tree : entityTypes.flower;
+        entities.push({
+            x: Math.random() * MAP_SIZE * TILE_W,
+            y: Math.random() * MAP_SIZE * TILE_H,
+            t: type,
+            variation: Math.floor(Math.random() * type.imgs.length)
+        });
+    }
+}
+
+createMap();
+
+function tick(ms) {
+    if (ms > 30) { console.log(ms); }
+    if (down("W")) {
+        player.y -= ms * 0.001 * TILE_H;
+    }
+    if (down("S")) {
+        player.y += ms * 0.001 * TILE_H;
+    }
+    if (down("A")) {
+        player.x -= ms * 0.001 * TILE_W;
+    }
+    if (down("D")) {
+        player.x += ms * 0.001 * TILE_W;
+    }
+
+    c.resetTransform();
+    c.fillStyle = "black";
+    c.fillRect(0, 0, canvas.width, canvas.height);
+    c.translate(-player.x + canvas.width / 2, -player.y + canvas.height / 2);
+    for (var y = 0; y < MAP_SIZE; y++) { for (var x = 0; x < MAP_SIZE; x++) {
+        img(tiles[y][x].t.img, x * TILE_W, y * TILE_H, TILE_W, TILE_H);
+    }}
+    entities.forEach(function(e) {
+        img(e.t.imgs[e.variation], e.x, e.y);
+    });
+    img(player.img, player.x, player.y);
+    c.resetTransform();
+    c.fillStyle = "white";
+    c.font = "100px Monospace";
+    var text = "MORAVEC";
+    var sz = c.measureText(text);
+    c.fillText(text, canvas.width / 2 - sz.width / 2, 200);
+    c.font = "32px Monospace";
+    text = "Back soon!";
+    sz = c.measureText(text);
+    c.fillText(text, canvas.width / 2 - sz.width / 2, 300);
+}
+
+var spritesheet = new Image();
+spritesheet.src = "graphics/spritesheet.png";
+
+function img(img, x, y) {
+    if (img == null) { return; }
+    c.drawImage(spritesheet, img.x, img.y, img.w, img.h, x + (img.dx || 0), y + (img.dy || 0), img.w, img.h);
+}
+
+var canvas = document.getElementById("gameCanvas");
+var c = canvas.getContext("2d");
+var keys = {};
+var keyCodes = {};
+var keysDown = {};
+var keyCodesDown = {};
+var click = null;
+var mouseDown = false;
+var cursor = {x: 300, y: 300};
+
+// Listen for key presses.
+function canvasKeyUp(e) {
+    keyCodes[e.which] = true;
+    keys[String.fromCharCode(e.which)] = true;
+    
+    keyCodesDown[e.which] = false;
+    keysDown[String.fromCharCode(e.which)] = false;
+}
+
+function canvasKeyDown(e) {
+    keyCodesDown[e.which] = true;
+    keysDown[String.fromCharCode(e.which)] = true;
+}
+
+function pressed(key) {
+    return !!keys[key] || !!keyCodes[key];
+}
+
+function down(key) {
+    return !!keysDown[key] || !!keyCodesDown[key];
+}
+
+$('body').keyup(canvasKeyUp).keydown(canvasKeyDown);
+
+// Listen for mouse stuff.
+function canvasClick(e) {
+    click = { "x": e.offsetX, "y": e.offsetY };
+}
+
+function canvasMouseDown(e) {
+    mouseDown = true;
+}
+
+function canvasMouseUp(e) {
+    mouseDown = false;
+}
+
+function canvasMove(e) {
+    cursor = { "x": e.offsetX, "y": e.offsetY };
+}
+
+$('#gameCanvas').click(canvasClick).mousemove(canvasMove).mousedown(canvasMouseDown).mouseup(canvasMouseUp);
+
+// Set up game loop.
+var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+var lastUpdate = new Date().getTime();
+
+function nextFrame() {
+    var currentTime = new Date().getTime();
+    tick(currentTime - lastUpdate);
+    keys = {};
+    keyCodes = {};
+    click = null;
+    lastUpdate = currentTime;
+    requestAnimationFrame(nextFrame);
+}
+
+// Once everything is set up, start game loop.
+requestAnimationFrame(nextFrame);
+
+jQuery(window).resize(function() {
+    canvas.width = window.innerWidth - 20;
+    canvas.height = window.innerHeight - 20;
+});
+jQuery(window).ready(function() {
+    canvas.width = window.innerWidth - 20;
+    canvas.height = window.innerHeight - 20;
+});
+ 
+/*canvas.addEventListener("click", function() {
+    if (canvas.webkitRequestFullScreen) {
+        canvas.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+    } else if (canvas.mozRequestFullScreen) {
+        canvas.mozRequestFullScreen();
+    } else if (canvas.requestFullScreen) {
+        canvas.requestFullScreen();
+    }
+});*/
+        </script>
+    </body>
+</html>
