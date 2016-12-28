@@ -31,7 +31,8 @@ var entityTypes = {
         imgs: [
             {x: 1, y: 71, w: 12, h: 22, dx: -6, dy: -18}
         ],
-        radius: 6
+        radius: 6,
+        solid: true
     },
     flower: {
         imgs: [
@@ -42,20 +43,25 @@ var entityTypes = {
             {x: 38, y: 127, w: 4, h: 10, dx: 0, dy: -9},
             {x: 52, y: 130, w: 3, h: 9, dx: -2, dy: -9}
         ],
-        radius: 2
+        radius: 2,
+        solid: false
     },
     tree: {
         imgs: [
             {x: 59, y: 81, w: 64, h: 53, dx: -30, dy: -50}
         ],
-        radius: 12
+        radius: 12,
+        solid: true
     }
 };
 
 var player = {
     x: MAP_SIZE * TILE_W / 2,
     y: MAP_SIZE * TILE_H / 2,
+    dx: 0,
+    dy: 0,
     t: entityTypes.player,
+    ticked: false,
     variation: 0
 };
 
@@ -82,10 +88,14 @@ function createMap() {
         entities.push({
             x: x,
             y: y,
+            dx: 0,
+            dy: 0,
             t: type,
+            ticked: false,
             variation: Math.floor(Math.random() * type.imgs.length)
         });
     }
+    entities.sort(function (a, b) { return a.y - b.y; });
 }
 
 var shiftX = 0;
@@ -100,18 +110,45 @@ createMap();
 
 function tick(ms) {
     if (ms > 30) { console.log(ms); }
+    player.dx = 0;
+    player.dy = 0;
     if (down("W")) {
-        player.y -= ms * 0.001 * TILE_H;
+        player.dy = -0.002 * TILE_H;
     }
     if (down("S")) {
-        player.y += ms * 0.001 * TILE_H;
+        player.dy = 0.002 * TILE_H;
     }
     if (down("A")) {
-        player.x -= ms * 0.001 * TILE_W;
+        player.dx = -0.002 * TILE_W;
     }
     if (down("D")) {
-        player.x += ms * 0.001 * TILE_W;
+        player.dx = 0.002 * TILE_W;
     }
+    
+    var i = 0;
+    while (i < entities.length) {
+        var e = entities[i];
+        if (e.ticked) { i++; continue; }
+        e.x += e.dx * ms;
+        e.y += e.dy * ms;
+        e.ticked = true;
+        if (e.dy != 0) {
+            var j = i;
+            while (j > 0 && entities[j - 1].y > e.y) {
+                var tmp = entities[j - 1];
+                entities[j - 1] = e;
+                entities[j] = tmp;
+                j--;
+            }
+            while (j < entities.length - 1 && entities[j + 1].y < e.y) {
+                var tmp = entities[j + 1];
+                entities[j + 1] = e;
+                entities[j] = tmp;
+                j++;
+            }
+        }
+    }
+    for (var i = 0; i < entities.length; i++) { entities[i].ticked = false; }
 
     shiftX = 0;
     shiftY = 0;
@@ -121,7 +158,6 @@ function tick(ms) {
     for (var y = 0; y < MAP_SIZE; y++) { for (var x = 0; x < MAP_SIZE; x++) {
         img(tiles[y][x].t.img, x * TILE_W, y * TILE_H, TILE_W, TILE_H);
     }}
-    entities.sort(function (a, b) { return a.y - b.y; });
     entities.forEach(function(e) {
         img(e.t.imgs[e.variation], e.x, e.y);
     });
