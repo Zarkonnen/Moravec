@@ -13,25 +13,25 @@ function hwl(name, volume) {
     return new Howl({src: ["sounds/" + name + ".ogg", "sounds/" + name + ".mp3", "sounds/" + name + ".wav"], volume: volume || 1});
 }
 
-var MAP_SIZE = 100;
-var TILE_W = 100;
-var TILE_H = 70;
+var MAP_SIZE = 40;
+var TILE_W = 200;
+var TILE_H = 140;
 
 var tileTypes = {
     grass: {
-        img: {x: 0, y: 0, w: 100, h: 70}
+        img: {x: 200, y: 0, w: 200, h: 140}
     },
     rock: {
-        img: {x: 100, y: 0, w: 100, h: 70}
+        img: {x: 400, y: 0, w: 200, h: 140}
     }
 };
 
 var entityTypes = {
     player: {
         imgs: [
-            {x: 1, y: 71, w: 12, h: 22, dx: -6, dy: -18}
+            {x: 319, y: 301, w: 23, h: 42, dx: -11, dy: -39}
         ],
-        radius: 6,
+        radius: 11,
         solid: true
     },
     flower: {
@@ -44,13 +44,26 @@ var entityTypes = {
             {x: 52, y: 130, w: 3, h: 9, dx: -2, dy: -9}
         ],
         radius: 2,
-        solid: false
+        solid: false,
+        particles: {
+            p: 0.00001,
+            color: "white",
+            size: 3,
+            dx: -1,
+            dy: -10,
+            xSpeedMin: 0.01,
+            xSpeedMax: 0.02,
+            ySpeedMin: -0.004,
+            ySpeedMax: -0.008,
+            lifeMin: 5000,
+            lifeMax: 40000
+        }
     },
     tree: {
         imgs: [
-            {x: 59, y: 81, w: 64, h: 53, dx: -30, dy: -50}
+            {x: 40, y: 237, w: 168, h: 154, dx: -87, dy: -143}
         ],
-        radius: 12,
+        radius: 27,
         solid: true
     }
 };
@@ -61,14 +74,16 @@ var clusters = [
         minN: 1,
         maxN: 12,
         t: entityTypes.tree,
-        radius: 100
+        radius: 400,
+        placementRadius: 50
     },
     {
         weight: 500,
         minN: 5,
         maxN: 20,
         t: entityTypes.flower,
-        radius: 80
+        radius: 80,
+        placementRadius: 3
     }
 ];
 
@@ -84,6 +99,7 @@ var player = {
 
 var tiles = [];
 var entities = [];
+var particles = [];
 
 entities.push(player);
 
@@ -97,7 +113,7 @@ function createMap() {
     }
     var totalWeight = 0;
     clusters.forEach(function(c) { totalWeight += c.weight; });
-    for (var i = 0; i < 1000; i++) {
+    for (var i = 0; i < 500; i++) {
         var roll = Math.random() * totalWeight;
         var cluster = null;
         for (var j = 0; j < clusters.length; j++) {
@@ -118,7 +134,7 @@ function createMap() {
             var d = Math.random() * cluster.radius;
             var x = cx + Math.cos(a) * d;
             var y = cy + Math.sin(a) * d * TILE_H / TILE_W;
-            if (entities.some(function(e) { return (e.x - x) * (e.x - x) + (e.y - y) * (e.y - y) < (e.t.radius + type.radius) * (e.t.radius + type.radius); })) {
+            if (entities.some(function(e) { return (e.x - x) * (e.x - x) + (e.y - y) * (e.y - y) < (e.t.radius + cluster.placementRadius) * (e.t.radius + cluster.placementRadius); })) {
                 continue;
             }
             entities.push({
@@ -185,15 +201,41 @@ function tick(ms) {
     while (i < entities.length) {
         var e = entities[i];
         if (e.ticked) { i++; continue; }
-        if (e.dx != 0 || e.dy != 0) {
+        if (e.dx != 0) {
             var ex2 = e.x + e.dx * ms;
-            var ey2 = e.y + e.dy * ms;
+            var ey2 = e.y;
             if (!e.t.solid || !entities.some(function(e2) {
-                return e2.t.solid && e != e2 && (e2.x - ex2) * (e2.x - ex2) + (e2.y - ey2) * (e2.y - ey2) < (e2.t.radius + e.t.radius) * (e2.t.radius + e.t.radius);
+                if (!e2.t.solid || e == e2) { return false; }
+                return Math.abs(e2.x - ex2) < e2.t.radius + e.t.radius && Math.abs(e2.y - ey2) < e2.t.radius + e.t.radius;
             }))
             {
                 e.x = ex2;
+            }
+        }
+        if (e.dy != 0) {
+            var ex2 = e.x;
+            var ey2 = e.y + e.dy * ms;
+            if (!e.t.solid || !entities.some(function(e2) {
+                if (!e2.t.solid || e == e2) { return false; }
+                return Math.abs(e2.x - ex2) < e2.t.radius + e.t.radius && Math.abs(e2.y - ey2) < e2.t.radius + e.t.radius;
+            }))
+            {
                 e.y = ey2;
+            }
+        }
+        if (e.t.particles) {
+            var visible = true;
+            var ps = e.t.particles;
+            if (visible && Math.random() < ps.p * ms) {
+                particles.push({
+                    x: e.x + ps.dx,
+                    y: e.y + ps.dy,
+                    xSpeed: ps.xSpeedMin + Math.random() * (ps.xSpeedMax - ps.xSpeedMin),
+                    ySpeed: ps.ySpeedMin + Math.random() * (ps.ySpeedMax - ps.ySpeedMin),
+                    size: ps.size,
+                    color: ps.color,
+                    life: ps.lifeMin + Math.random() * (ps.lifeMax - ps.lifeMin)
+                });
             }
         }
         e.ticked = true;
@@ -226,6 +268,19 @@ function tick(ms) {
     entities.forEach(function(e) {
         img(e.t.imgs[e.variation], e.x, e.y);
     });
+    for (var i = 0; i < particles.length; i++) {
+        var p = particles[i];
+        p.life -= ms;
+        if (p.life <= 0) {
+            particles.splice(i, 1);
+            i--;
+        } else {
+            p.x += p.xSpeed * ms;
+            p.y += p.ySpeed * ms;
+            c.fillStyle = p.color;
+            c.fillRect(p.x + shiftX, p.y + shiftY, p.size, p.size);
+        }
+    }
     
     /*
     c.resetTransform();
